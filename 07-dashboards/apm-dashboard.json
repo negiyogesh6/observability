@@ -1,0 +1,2388 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 2,
+  "panels": [
+    {
+      "type": "row",
+      "title": "🎯 Golden Signals",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "stat",
+      "title": "Throughput",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Service Availability %",
+      "description": "% of successful requests in last 1h. SLA target: 99.9%",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(1 - sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[1h])) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[1h]))) * 100 or vector(100)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 3,
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Apdex Score",
+      "description": "0-1 score. 1=perfect, <0.7=poor. Satisfied=<200ms, Tolerating=<800ms, Frustrated=>800ms",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(\n  sum(rate(traces_spanmetrics_latency_bucket{le=\"0.256\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))\n  + (\n    sum(rate(traces_spanmetrics_latency_bucket{le=\"1.024\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))\n    - sum(rate(traces_spanmetrics_latency_bucket{le=\"0.256\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))\n  ) / 2\n) / sum(rate(traces_spanmetrics_latency_count{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "green",
+                "value": 0.9
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total Requests (1h)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[1h]))",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total Errors (1h)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[1h])) or vector(0)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Services with Errors",
+      "description": "Number of services currently returning errors",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "count(sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name) > 0) or vector(0)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Services Breaching SLA",
+      "description": "Services with error rate > 1% or P95 latency > 2s",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "count((sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name)) > 0.01 or histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, service_name)) > 2000) or vector(0)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "🚨 Service Health Status — All Services at a Glance",
+      "description": "NOC view: one row per service showing current health. Red = needs attention.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, service_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (service_name) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "expr": "sum(increase(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[1h])) by (service_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "service_name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
+            "renameByName": {
+              "service_name": "Service",
+              "Value #A": "Req/s",
+              "Value #B": "P95 (ms)",
+              "Value #C": "Error %",
+              "Value #D": "Total Req (1h)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error %"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P95 (ms)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 500
+                    },
+                    {
+                      "color": "red",
+                      "value": 2000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Req/s"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Service"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "🔍 View Traces",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__value.text}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "📈 Latency Details",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "stat",
+      "title": "Avg Latency",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_duration_milliseconds_sum{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) / sum(rate(otel_traces_spanmetrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "P50",
+      "description": "50% of requests faster than this (typical experience)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "P95",
+      "description": "95% of requests faster than this (slow users)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "P99",
+      "description": "99% of requests faster than this (worst case)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 3000
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Error Rate",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) * 100 or vector(0)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "🗺️ Service Dependency Map",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "nodeGraph",
+      "title": "Service Map — Dependencies (DB, External, Internal)",
+      "description": "Shows how services call each other. Edge labels show request rate and latency.",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "queryType": "serviceMap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "row",
+      "title": "📈 Throughput & Latency Trends",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate by Service",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Percentiles",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate % Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name) * 100",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "🔥 Top Transactions — Click to Drilldown",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "All Endpoints — Click Endpoint to Open Detail Dashboard",
+      "description": "Click any endpoint name to open the detailed drilldown dashboard",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_duration_milliseconds_sum{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) / sum(rate(otel_traces_spanmetrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "E"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "F"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "span_name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "service_name 1": true,
+              "service_name 2": true,
+              "service_name 3": true,
+              "service_name 4": true,
+              "service_name 5": true
+            },
+            "renameByName": {
+              "service_name": "Service",
+              "span_name": "Endpoint",
+              "Value #A": "Req/s",
+              "Value #B": "Avg (ms)",
+              "Value #C": "P95 (ms)",
+              "Value #D": "P99 (ms)",
+              "Value #E": "Error %",
+              "Value #F": "Errors/s"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Endpoint"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "🔍 Traces in Tempo",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__data.fields.Service}%22]},{%22id%22:%22span%22,%22scope%22:%22span%22,%22tag%22:%22name%22,%22operator%22:%22=%22,%22value%22:[%22${__value.text}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "📊 Metrics in Prometheus",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22prometheus%22,%22queries%22:[{%22expr%22:%22histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\\%22SPAN_KIND_SERVER\\%22,service_name=\\%22${__data.fields.Service}\\%22,span_name=\\%22${__value.text}\\%22}[5m])) by (le))%22,%22legendFormat%22:%22p95%22},{%22expr%22:%22sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\\%22SPAN_KIND_SERVER\\%22,service_name=\\%22${__data.fields.Service}\\%22,span_name=\\%22${__value.text}\\%22}[5m]))%22,%22legendFormat%22:%22req/s%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "📋 Logs in Loki",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22loki%22,%22queries%22:[{%22expr%22:%22{k8s_namespace_name=~\\%22.+\\%22} |= \\%60${__data.fields.Service}\\%60%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Service"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "🔍 All Traces for Service",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__value.text}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "📋 Service Logs",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22loki%22,%22queries%22:[{%22expr%22:%22{k8s_namespace_name=~\\%22.+\\%22} |= \\%60${__value.text}\\%60%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Req/s"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg (ms)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P95 (ms)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P99 (ms)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors/s"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error %"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "🐌 Slowest & Busiest — Click to Drilldown",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "bargauge",
+      "title": "Top 10 Slowest Endpoints (P95) — Click to Detail",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name)))",
+          "legendFormat": "{{service_name}} — {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "links": [
+            {
+              "title": "🔍 Traces in Tempo",
+              "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__field.labels.service_name}%22]},{%22id%22:%22span%22,%22scope%22:%22span%22,%22tag%22:%22name%22,%22operator%22:%22=%22,%22value%22:[%22${__field.labels.span_name}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+              "targetBlank": true
+            },
+            {
+              "title": "📊 Metrics in Prometheus",
+              "url": "/explore?orgId=1&left={%22datasource%22:%22prometheus%22,%22queries%22:[{%22expr%22:%22histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{service_name=\\%22${__field.labels.service_name}\\%22,span_name=\\%22${__field.labels.span_name}\\%22}[5m])) by (le))%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+              "targetBlank": true
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "lcd",
+        "minVizHeight": 10,
+        "minVizWidth": 0
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Top 10 Highest Throughput — Click to Detail",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name))",
+          "legendFormat": "{{service_name}} — {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "links": [
+            {
+              "title": "🔍 Traces in Tempo",
+              "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__field.labels.service_name}%22]},{%22id%22:%22span%22,%22scope%22:%22span%22,%22tag%22:%22name%22,%22operator%22:%22=%22,%22value%22:[%22${__field.labels.span_name}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+              "targetBlank": true
+            },
+            {
+              "title": "📊 Metrics in Prometheus",
+              "url": "/explore?orgId=1&left={%22datasource%22:%22prometheus%22,%22queries%22:[{%22expr%22:%22sum(rate(otel_traces_spanmetrics_calls_total{service_name=\\%22${__field.labels.service_name}\\%22,span_name=\\%22${__field.labels.span_name}\\%22}[5m]))%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+              "targetBlank": true
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {}
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "lcd",
+        "minVizHeight": 10,
+        "minVizWidth": 0
+      }
+    },
+    {
+      "type": "row",
+      "title": "🔴 Top Errors — Click to Drilldown",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Top Error Endpoints — Click to View Detail",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 49
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "span_name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "service_name 1": true
+            },
+            "renameByName": {
+              "service_name": "Service",
+              "span_name": "Endpoint",
+              "Value #A": "Errors/s",
+              "Value #B": "Error %"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Endpoint"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "🔍 Traces in Tempo",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22tempo%22,%22queries%22:[{%22queryType%22:%22traceqlSearch%22,%22filters%22:[{%22id%22:%22service%22,%22scope%22:%22resource%22,%22tag%22:%22service.name%22,%22operator%22:%22=%22,%22value%22:[%22${__data.fields.Service}%22]},{%22id%22:%22span%22,%22scope%22:%22span%22,%22tag%22:%22name%22,%22operator%22:%22=%22,%22value%22:[%22${__value.text}%22]}]}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "📊 Metrics in Prometheus",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22prometheus%22,%22queries%22:[{%22expr%22:%22sum(rate(otel_traces_spanmetrics_calls_total{status_code=\\%22STATUS_CODE_ERROR\\%22,service_name=\\%22${__data.fields.Service}\\%22,span_name=\\%22${__value.text}\\%22}[5m]))%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "📋 Logs in Loki",
+                    "url": "/explore?orgId=1&left={%22datasource%22:%22loki%22,%22queries%22:[{%22expr%22:%22{k8s_namespace_name=~\\%22.+\\%22} |= \\%60error\\%60 |= \\%60${__data.fields.Service}\\%60%22}],%22range%22:{%22from%22:%22${__from}%22,%22to%22:%22${__to}%22}}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error %"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "yellow",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Trends by Endpoint",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 49
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name, span_name) > 0",
+          "legendFormat": "{{service_name}} — {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "📊 HTTP Status Codes",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Status Codes Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (http_status_code)",
+          "legendFormat": "HTTP {{http_status_code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*2[0-9]{2}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*4[0-9]{2}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*5[0-9]{2}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Status Code Distribution",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[1h])) by (http_status_code)",
+          "legendFormat": "HTTP {{http_status_code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "pieType": "donut",
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "⚡ Service Comparison",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "P95 Latency Comparison",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (le, service_name))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput Comparison",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\", service_name=~\"$service\"}[5m])) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "🌐 Client IPs & User Agents",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 75
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Top Client IPs",
+      "description": "Requires http.client_ip attribute in spans. Captured by OTel Java/Python agent from incoming requests.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 76
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "queryType": "traceqlSearch",
+          "filters": [
+            {
+              "id": "service-name",
+              "scope": "resource",
+              "tag": "service.name",
+              "operator": "=~",
+              "value": [
+                "$service"
+              ]
+            }
+          ],
+          "groupBy": [
+            {
+              "id": "client-ip",
+              "scope": "span",
+              "tag": "http.client_ip"
+            }
+          ],
+          "limit": 10
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top User Agents",
+      "description": "Requires http.user_agent attribute in spans. Captured by OTel agent from incoming requests.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 76
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "queryType": "traceqlSearch",
+          "filters": [
+            {
+              "id": "service-name",
+              "scope": "resource",
+              "tag": "service.name",
+              "operator": "=~",
+              "value": [
+                "$service"
+              ]
+            }
+          ],
+          "groupBy": [
+            {
+              "id": "user-agent",
+              "scope": "span",
+              "tag": "http.user_agent"
+            }
+          ],
+          "limit": 10
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "🔗 External Calls & Database",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 84
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Top External HTTP Calls (CLIENT spans)",
+      "description": "Outbound HTTP calls made by your services to external APIs",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 85
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_CLIENT\", service_name=~\"$service\"}[5m])) by (service_name, span_name)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_CLIENT\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\", span_kind=\"SPAN_KIND_CLIENT\", service_name=~\"$service\"}[5m])) by (service_name, span_name) / sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_CLIENT\", service_name=~\"$service\"}[5m])) by (service_name, span_name) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "span_name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "service_name 1": true,
+              "service_name 2": true
+            },
+            "renameByName": {
+              "service_name": "Service",
+              "span_name": "External Call",
+              "Value #A": "Req/s",
+              "Value #B": "P95 (ms)",
+              "Value #C": "Error %"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error %"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top Database Queries (DB spans)",
+      "description": "DB calls captured by OTel JDBC/SQLAlchemy instrumentation. Shows db.statement attribute.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 85
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_CLIENT\", db_system=~\".+\", service_name=~\"$service\"}[5m])) by (service_name, span_name, db_system)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_CLIENT\", db_system=~\".+\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "span_name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "service_name 1": true
+            },
+            "renameByName": {
+              "service_name": "Service",
+              "span_name": "DB Operation",
+              "db_system": "DB Type",
+              "Value #A": "Req/s",
+              "Value #B": "P95 (ms)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "External Call Latency Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 93
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_CLIENT\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "legendFormat": "{{service_name}} → {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DB Query Latency Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 93
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traces_spanmetrics_duration_milliseconds_bucket{span_kind=\"SPAN_KIND_CLIENT\", db_system=~\".+\", service_name=~\"$service\"}[5m])) by (le, service_name, span_name))",
+          "legendFormat": "{{service_name}} DB: {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "📋 Live Logs",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 101
+      },
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      },
+      "options": {}
+    },
+    {
+      "type": "logs",
+      "title": "Application Logs — Filter by Service",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 102
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{k8s_namespace_name!=\"monitoring\", k8s_namespace_name!=\"kube-system\", k8s_namespace_name!=\"opentelemetry-operator-system\", service_name=~\"$service\"} | line_format `[{{.k8s_container_name}}] {{__line__}}`",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": false,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [
+    "apm",
+    "opentelemetry",
+    "tempo"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(otel_traces_spanmetrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}, service_name)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "title": "APM — Application Performance Monitoring",
+  "uid": "apm-main",
+  "refresh": "30s",
+  "style": "dark",
+  "timezone": "browser"
+}

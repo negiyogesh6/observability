@@ -1,0 +1,110 @@
+# Node.js dummy app — simulates user-service
+# Auto-instrumented via OTel annotation — zero code changes
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nodejs-demo-app-code
+  namespace: staging
+data:
+  app.js: |
+    const http = require('http');
+
+    const server = http.createServer((req, res) => {
+      const delay = Math.floor(Math.random() * 200) + 50;
+
+      setTimeout(() => {
+        res.setHeader('Content-Type', 'application/json');
+
+        if (req.url === '/health') {
+          res.writeHead(200);
+          res.end(JSON.stringify({ status: 'healthy' }));
+        } else if (req.url === '/') {
+          res.writeHead(200);
+          res.end(JSON.stringify({ service: 'nodejs-demo-app', status: 'ok', latency_ms: delay }));
+        } else {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: 'not found' }));
+        }
+
+        console.log(`${req.method} ${req.url} - ${delay}ms`);
+      }, delay);
+    });
+
+    server.listen(3000, () => {
+      console.log('Node.js demo app started on port 3000');
+    });
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-demo-app
+  namespace: staging
+  labels:
+    app: nodejs-demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nodejs-demo-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-demo-app
+      annotations:
+        instrumentation.opentelemetry.io/inject-nodejs: "monitoring/nodejs-instrumentation"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+    spec:
+      containers:
+        - name: nodejs-demo-app
+          image: node:20-slim
+          command: ["node", "/app/app.js"]
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: nodejs-demo-app
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=staging,service.version=1.0"
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: app-code
+          configMap:
+            name: nodejs-demo-app-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-demo-app
+  namespace: staging
+  labels:
+    app: nodejs-demo-app
+spec:
+  selector:
+    app: nodejs-demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

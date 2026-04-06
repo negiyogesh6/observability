@@ -1,0 +1,105 @@
+# Java dummy app — simulates user-service
+# Auto-instrumented via OTel annotation — zero code changes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-demo-app
+  namespace: staging
+  labels:
+    app: java-demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: java-demo-app
+  template:
+    metadata:
+      labels:
+        app: java-demo-app
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "monitoring/java-instrumentation"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: java-demo-app
+          image: eclipse-temurin:17-jdk
+          command: ["sh", "-c"]
+          args:
+            - |
+              mkdir -p /app
+              cat > /app/App.java << 'EOF'
+              import com.sun.net.httpserver.HttpServer;
+              import java.net.InetSocketAddress;
+              import java.util.Random;
+              public class App {
+                public static void main(String[] args) throws Exception {
+                  HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+                  Random rand = new Random();
+                  server.createContext("/", exchange -> {
+                    try {
+                      Thread.sleep(new Random().nextInt(200) + 50);
+                    } catch (InterruptedException e) { }
+                    String resp = "{\"service\":\"java-demo-app\",\"status\":\"ok\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, resp.length());
+                    exchange.getResponseBody().write(resp.getBytes());
+                    exchange.getResponseBody().close();
+                  });
+                  server.createContext("/health", exchange -> {
+                    String resp = "{\"status\":\"healthy\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, resp.length());
+                    exchange.getResponseBody().write(resp.getBytes());
+                    exchange.getResponseBody().close();
+                  });
+                  server.start();
+                  System.out.println("Java demo app started on port 8080");
+                }
+              }
+              EOF
+              cd /app && javac App.java && java App
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: java-demo-app
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=staging,service.version=1.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-demo-app
+  namespace: staging
+  labels:
+    app: java-demo-app
+spec:
+  selector:
+    app: java-demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+

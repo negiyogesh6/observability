@@ -1,0 +1,51 @@
+# Load generator — sends continuous requests to both demo apps
+# This generates traces, metrics, and logs for your POC
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: staging
+  labels:
+    app: load-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      containers:
+        - name: load-generator
+          image: curlimages/curl:8.6.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Starting load generator..."
+              while true; do
+                # Spring Boot app
+                curl -s -X POST http://springboot-demo.staging.svc.cluster.local/api/payment -H 'Content-Type: application/json' -d '{"amount":100}' > /dev/null
+                curl -s http://springboot-demo.staging.svc.cluster.local/api/payment/validate > /dev/null
+                curl -s http://springboot-demo.staging.svc.cluster.local/api/payment/history > /dev/null
+                curl -s http://springboot-demo.staging.svc.cluster.local/api/user/123 > /dev/null
+                curl -s http://springboot-demo.staging.svc.cluster.local/api/order/ORD-456 > /dev/null
+
+                # Node.js app
+                curl -s http://nodejs-demo-app.staging.svc.cluster.local/ > /dev/null
+
+                # Python app
+                curl -s http://python-demo-app.staging.svc.cluster.local/api/payment > /dev/null
+                curl -s http://python-demo-app.staging.svc.cluster.local/api/payment/validate > /dev/null
+                curl -s http://python-demo-app.staging.svc.cluster.local/api/call-nodejs > /dev/null
+
+                sleep 2
+              done
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

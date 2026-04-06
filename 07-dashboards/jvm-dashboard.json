@@ -1,0 +1,310 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 2,
+  "refresh": "30s",
+  "style": "dark",
+  "timezone": "browser",
+  "title": "JVM — Runtime Metrics (OTel Java Agent)",
+  "uid": "jvm-otel",
+  "tags": ["jvm", "java", "opentelemetry"],
+  "time": { "from": "now-1h", "to": "now" },
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(otel_jvm_memory_used_bytes, job)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2
+      },
+      {
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(otel_jvm_memory_used_bytes{job=~\"$service\"}, instance)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "☕ JVM Overview",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "CPU Utilization",
+      "description": "Recent JVM process CPU utilization",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "avg(otel_jvm_cpu_recent_utilization_ratio{job=~\"$service\", instance=~\"$pod\"})" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.6 }, { "color": "red", "value": 0.85 }] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Heap Used",
+      "description": "Current heap memory in use",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(otel_jvm_memory_used_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"})" }],
+      "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 400000000 }, { "color": "red", "value": 700000000 }] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Heap Max",
+      "description": "Maximum heap memory available",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(otel_jvm_memory_limit_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"})" }],
+      "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "steps": [{ "color": "blue", "value": null }] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Heap Usage %",
+      "description": "Heap used vs max",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(otel_jvm_memory_used_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}) / sum(otel_jvm_memory_limit_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}) * 100" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 }] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Live Threads",
+      "description": "Total active JVM threads",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(otel_jvm_thread_count{job=~\"$service\", instance=~\"$pod\"})" }],
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 200 }] } } }
+    },
+    {
+      "type": "stat",
+      "title": "GC Collections/min",
+      "description": "Rate of GC events (minor + major)",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(rate(otel_jvm_gc_duration_seconds_count{job=~\"$service\", instance=~\"$pod\"}[5m])) * 60" }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 15 }] } } }
+    },
+    {
+      "type": "row",
+      "title": "🧠 Memory",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap Memory — Used vs Committed vs Max",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "sum(otel_jvm_memory_used_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}) by (instance)", "legendFormat": "{{instance}} — Used" },
+        { "expr": "sum(otel_jvm_memory_committed_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}) by (instance)", "legendFormat": "{{instance}} — Committed" },
+        { "expr": "sum(otel_jvm_memory_limit_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}) by (instance)", "legendFormat": "{{instance}} — Max" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 15, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Non-Heap Memory — Used vs Committed",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "sum(otel_jvm_memory_used_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"non_heap\"}) by (instance)", "legendFormat": "{{instance}} — Used" },
+        { "expr": "sum(otel_jvm_memory_committed_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"non_heap\"}) by (instance)", "legendFormat": "{{instance}} — Committed" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory by Pool",
+      "description": "Heap used broken down by memory pool (Eden, Survivor, Old Gen)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "otel_jvm_memory_used_bytes{job=~\"$service\", instance=~\"$pod\", jvm_memory_type=\"heap\"}", "legendFormat": "{{instance}} — {{jvm_memory_pool_name}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory Used After Last GC — by Pool",
+      "description": "Memory remaining after GC — indicates actual live data size",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "otel_jvm_memory_used_after_last_gc_bytes{job=~\"$service\", instance=~\"$pod\"}", "legendFormat": "{{instance}} — {{jvm_memory_pool_name}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "row",
+      "title": "🗑️ Garbage Collection",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Rate — Collections per Second",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "rate(otel_jvm_gc_duration_seconds_count{job=~\"$service\", instance=~\"$pod\"}[5m])", "legendFormat": "{{instance}} — {{jvm_gc_name}} — {{jvm_gc_action}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "fillOpacity": 15, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Pause Time — Average Duration",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "rate(otel_jvm_gc_duration_seconds_sum{job=~\"$service\", instance=~\"$pod\"}[5m]) / rate(otel_jvm_gc_duration_seconds_count{job=~\"$service\", instance=~\"$pod\"}[5m])", "legendFormat": "{{instance}} — {{jvm_gc_name}} — {{jvm_gc_action}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 15, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Overhead — % Time Spent in GC",
+      "description": "High values (>5%) indicate GC pressure",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "sum(rate(otel_jvm_gc_duration_seconds_sum{job=~\"$service\", instance=~\"$pod\"}[5m])) by (instance) * 100", "legendFormat": "{{instance}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "custom": { "fillOpacity": 20, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 10 }] } } }
+    },
+    {
+      "type": "bargauge",
+      "title": "Total GC Collections Since Start",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "orientation": "horizontal", "displayMode": "lcd", "minVizHeight": 10 },
+      "targets": [
+        { "expr": "otel_jvm_gc_duration_seconds_count{job=~\"$service\", instance=~\"$pod\"}", "legendFormat": "{{instance}} — {{jvm_gc_name}} — {{jvm_gc_action}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 200 }] } } }
+    },
+    {
+      "type": "row",
+      "title": "🧵 Threads",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Thread Count by State",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "sum(otel_jvm_thread_count{job=~\"$service\", instance=~\"$pod\"}) by (instance, jvm_thread_state)", "legendFormat": "{{instance}} — {{jvm_thread_state}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Daemon vs Non-Daemon Threads",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] } },
+      "targets": [
+        { "expr": "sum(otel_jvm_thread_count{job=~\"$service\", instance=~\"$pod\"}) by (instance, jvm_thread_daemon)", "legendFormat": "{{instance}} — daemon={{jvm_thread_daemon}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "row",
+      "title": "⚙️ CPU",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM CPU Utilization",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max", "mean"] } },
+      "targets": [
+        { "expr": "otel_jvm_cpu_recent_utilization_ratio{job=~\"$service\", instance=~\"$pod\"}", "legendFormat": "{{instance}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "fillOpacity": 20, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.6 }, { "color": "red", "value": 0.85 }] } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM CPU Time (Cumulative)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] } },
+      "targets": [
+        { "expr": "rate(otel_jvm_cpu_time_seconds_total{job=~\"$service\", instance=~\"$pod\"}[5m])", "legendFormat": "{{instance}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "row",
+      "title": "📦 Classes",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Loaded Classes",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] } },
+      "targets": [
+        { "expr": "otel_jvm_class_count{job=~\"$service\", instance=~\"$pod\"}", "legendFormat": "{{instance}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Classes Loaded Rate",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 58 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] } },
+      "targets": [
+        { "expr": "rate(otel_jvm_class_loaded_total{job=~\"$service\", instance=~\"$pod\"}[5m])", "legendFormat": "{{instance}} — loaded" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "cps", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Classes Unloaded Rate",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 58 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] } },
+      "targets": [
+        { "expr": "rate(otel_jvm_class_unloaded_total{job=~\"$service\", instance=~\"$pod\"}[5m])", "legendFormat": "{{instance}} — unloaded" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "cps", "custom": { "fillOpacity": 10, "lineWidth": 2, "gradientMode": "opacity", "spanNulls": true } } }
+    }
+  ]
+}

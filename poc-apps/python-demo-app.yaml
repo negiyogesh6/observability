@@ -1,0 +1,133 @@
+# Python dummy app — simulates payment-service
+# Auto-instrumented via OTel annotation — zero code changes
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: python-demo-app-code
+  namespace: staging
+data:
+  app.py: |
+    from flask import Flask, jsonify
+    import time
+    import random
+    import requests
+    import logging
+
+    app = Flask(__name__)
+    logging.basicConfig(level=logging.INFO)
+
+    @app.route('/health')
+    def health():
+        return jsonify({"status": "healthy"})
+
+    @app.route('/api/payment', methods=['GET', 'POST'])
+    def payment():
+        # simulate processing time
+        delay = random.uniform(0.05, 0.3)
+        time.sleep(delay)
+
+        # simulate occasional errors
+        if random.random() < 0.1:
+            app.logger.error("Payment processing failed")
+            return jsonify({"error": "payment failed"}), 500
+
+        app.logger.info(f"Payment processed in {delay:.3f}s")
+        return jsonify({"status": "success", "latency_ms": int(delay * 1000)})
+
+    @app.route('/api/payment/validate', methods=['GET', 'POST'])
+    def validate():
+        delay = random.uniform(0.01, 0.1)
+        time.sleep(delay)
+        return jsonify({"valid": True})
+
+    @app.route('/api/call-nodejs')
+    def call_nodejs():
+        """Calls nodejs-demo-app to test cross-service tracing"""
+        try:
+            resp = requests.get('http://nodejs-demo-app.staging.svc.cluster.local/', timeout=5)
+            return jsonify({"nodejs_response": resp.text, "status": "ok"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 502
+
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=5000)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-demo-app
+  namespace: staging
+  labels:
+    app: python-demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-demo-app
+  template:
+    metadata:
+      labels:
+        app: python-demo-app
+      annotations:
+        instrumentation.opentelemetry.io/inject-python: "monitoring/python-instrumentation"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+    spec:
+      containers:
+        - name: python-demo-app
+          image: python:3.11-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              pip install flask requests --quiet &&
+              python /app/app.py
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: python-demo-app
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=staging,service.version=1.0"
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 40
+            periodSeconds: 10
+      volumes:
+        - name: app-code
+          configMap:
+            name: python-demo-app-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-demo-app
+  namespace: staging
+  labels:
+    app: python-demo-app
+spec:
+  selector:
+    app: python-demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+
