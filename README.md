@@ -13,38 +13,58 @@
   ⚖️   Load Balancer  (HTTPS :443)
       |
       v
-  +------------------------------------------------------------+
-  |  ☁️   EKS Cluster                                          |
-  |                                                            |
-  |  +------------------------------------------------------+  |
-  |  |  📦  Application Namespace                          |  |
-  |  |------------------------------------------------------|  |
-  |  |  ☕  Java  |  🐍  Python  |  🟩  Node.js            |  |
-  |  |  OTel Agent auto-injected via operator annotation   |  |
-  |  +------------------------+-----------------------------+  |
-  |                           |  OTLP :4318                    |
-  |                           v                                |
-  |  +------------------------------------------------------+  |
-  |  |  🔄  OTel Collector  (DaemonSet)                    |  |
-  |  |  Receive -> Process -> spanmetrics -> Export        |  |
-  |  +----------+-----------+------------------+-----------+  |
-  |             |  Traces   |  Metrics         |  Logs        |
-  |             v           v                  v              |
-  |  +-----------+  +-------------+  +-----------+            |
-  |  | 🔍  Tempo |  | 📊 Prometheus|  | 📝  Loki  |            |
-  |  |   50Gi    |  |    50Gi     |  |   50Gi    |            |
-  |  +-----------+  +------+------+  +-----------+            |
-  |                         |                                  |
-  |             scrapes --> 🖥️   node-exporter                 |
-  |                     --> ☸️   kube-state-metrics             |
-  |                     --> 🔎  blackbox-exporter               |
-  |                         |                                  |
-  |                         v                                  |
-  |  +------------------------------------------------------+  |
-  |  |  📈  Grafana                                        |  |
-  |  |  📊 APM  |  🖥️ EKS  |  ☕ JVM  |  💰 Cost          |  |
-  |  +------------------------------------------------------+  |
-  +------------------------------------------------------------+
+  +-------------------+    +-------------------+    +-------------------+
+  |  ☕  Java Service  |    |  🐍  Python Svc   |    |  🟩  Node.js Svc  |
+  |      :8080        |    |      :5000        |    |      :3000        |
+  |   [OTel Agent]    |    |   [OTel Agent]    |    |   [OTel Agent]    |
+  +--------+----------+    +--------+----------+    +--------+----------+
+           |                        |                        |
+           +------------------------+------------------------+
+                                    |
+                              OTLP HTTP :4318
+                                    |
+                                    v
+  +-----------------------------------------------------------------------+
+  |           🔄  OpenTelemetry Collector  (DaemonSet)                    |
+  |-----------------------------------------------------------------------|
+  |  📥 Receive          |  ⚙️  Process       |  🔗 spanmetrics           |
+  |  OTLP gRPC  :4317   |  batch            |  traces -> RED metrics    |
+  |  OTLP HTTP  :4318   |  memory_limiter   |                           |
+  |  FileLog            |                   |  📤 Export to backends    |
+  +----------+----------+-------------------+---------------------------+
+             |                    |                        |
+         🔍 Traces           📊 Metrics               📝 Logs
+             |                    |                        |
+             v                    v                        v
+  +------------------+  +--------------------+  +------------------+
+  |    🔍  Tempo     |  |   📊  Prometheus   |  |    📝  Loki      |
+  |------------------|  |--------------------|  |------------------|
+  |  Distributed     |  |  Metrics + Alerts  |  |  Log Storage     |
+  |  Trace Storage   |  |  PromQL Engine     |  |  LogQL Engine    |
+  |  50Gi            |  |  50Gi              |  |  50Gi            |
+  +------------------+  +---------+----------+  +------------------+
+                                   |
+                        📡  Also scrapes:
+                        |-- 🖥️   node-exporter      (DaemonSet)
+                        |-- ☸️   kube-state-metrics
+                        |-- 📦  cAdvisor             (kubelet built-in)
+                        +-- 🔎  blackbox-exporter    (API health probes)
+                                   |
+                                   v
+  +-----------------------------------------------------------------------+
+  |                         📈  Grafana                                   |
+  |-----------------------------------------------------------------------|
+  |  +------------------+  +------------------+  +------------------+    |
+  |  | 📊  APM          |  | 🖥️   EKS          |  | ☕  JVM          |    |
+  |  | Golden Signals   |  | NOC · Nodes      |  | Heap · GC        |    |
+  |  | Apdex · Latency  |  | Pods · Security  |  | Threads · CPU    |    |
+  |  +------------------+  +------------------+  +------------------+    |
+  |                         +------------------+                          |
+  |                         | 💰  Cost         |                          |
+  |                         | Efficiency       |                          |
+  |                         | Rightsizing      |                          |
+  |                         +------------------+                          |
+  +-----------------------------------------------------------------------+
 ```
 
 ## Grafana Dashboards
@@ -97,11 +117,12 @@ Variables: `$namespace` (multi-select), `$node` (single-select, all nodes)
 
 | Area | Metrics | Tool |
 |------|---------|------|
-| **EKS Cluster** | Node CPU/memory/disk, node conditions/pressure, pod restarts, deployment health, HPA, PVC usage, namespace resource quotas, Karpenter node activity, network policies, K8s warning events | Prometheus + kube-state-metrics + node-exporter |
-| **Infra (ALB)** | Request count, latency, 4xx/5xx errors, active connections | CloudWatch (AWS native) |
-| **APM** | Request latency (p50/p95/p99), throughput, error rates, end-to-end traces, service map, HTTP status codes, service comparison, live logs | OTel + Tempo + Prometheus |
+| **EKS Cluster** | Node CPU/memory/disk, pod restarts, deployment health, HPA, PVC usage, K8s warning events, security compliance | Prometheus + kube-state-metrics + node-exporter |
+| **APM** | Request rate, error rate, P50/P95/P99 latency, Apdex score, top slow endpoints, service comparison | OTel Collector + Tempo + Prometheus |
+| **JVM** | Heap/non-heap memory, GC pause time, thread states, CPU usage, class loading | OTel Java Agent + Prometheus |
+| **API Health** | Up/down status, response time, HTTP status codes, SSL cert expiry, DNS lookup time | Blackbox Exporter + Prometheus |
 | **Logs** | Container stdout/stderr, log → trace correlation | OTel Collector (filelog) + Loki |
-| **Database (RDS)** | Query performance, connections, CPU, I/O, replication lag | CloudWatch Performance Insights |
+| **Cost** | Cluster efficiency, node utilization, pod rightsizing, zombie resources, unused PVCs | Prometheus + kube-state-metrics |
 
 ## Prerequisites
 
@@ -320,59 +341,6 @@ Import via **Grafana → Dashboards → Import → Upload JSON file**:
 
 > All dashboards use **Prometheus** as the data source with UID `prometheus`.
 > Variables are pre-configured — `$namespace`, `$deployment`, `$pod` cascade automatically.
-
-### Step 7: CloudWatch for ALB + RDS
-
-ALB and RDS metrics are in CloudWatch natively. No extra setup needed.
-
-**ALB metrics to monitor in CloudWatch:**
-- `RequestCount` — total requests
-- `TargetResponseTime` — latency
-- `HTTPCode_Target_4XX_Count` — client errors
-- `HTTPCode_Target_5XX_Count` — server errors
-- `ActiveConnectionCount` — concurrent connections
-- `UnHealthyHostCount` — unhealthy targets
-
-**RDS Performance Insights (enable in RDS console):**
-- Top SQL queries by wait time
-- Active sessions breakdown
-- CPU/memory/storage usage
-- Connection count
-- Read/Write IOPS
-- Replication lag (if read replicas)
-
-## Application Flow — Full Trace Path
-
-```
-  👤  User
-      |
-      v
-  ⚖️   Load Balancer
-      |
-      v
-  ☕  java-service  (45ms total)
-      |
-      +--------> 🐍  python-service  (30ms)
-      |                  |
-      |                  +--------> 🗄️   Database  (30ms)
-      |
-      |  OTLP  (traces + metrics + logs)
-      v
-  🔄  OTel Collector
-      |
-      v
-  🔍  Tempo
-      |
-      v
-  📈  Grafana  —  Full trace visible:
-                  java (45ms) -> python (30ms) -> DB (30ms)
-```
-
-In Grafana Tempo, you see the full trace:
-```
-ALB → user-service (45ms) → payment-service (120ms) → DB query (30ms)
-                           → notification-service (15ms)
-```
 
 ## Alerting
 

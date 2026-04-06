@@ -81,10 +81,10 @@ We evaluated Datadog, New Relic, and Dynatrace. We chose open source for three r
   |           🔄  OpenTelemetry Collector  (DaemonSet)                    |
   |-----------------------------------------------------------------------|
   |  📥 Receive          |  ⚙️  Process       |  🔗 spanmetrics           |
-  |  OTLP gRPC  :4317   |  batch            |  traces -> RED metrics    |
-  |  OTLP HTTP  :4318   |  memory_limiter   |                           |
-  |  FileLog            |                   |  📤 Export to backends    |
-  +----------+----------+-------------------+---------------------------+
+  |  OTLP gRPC  :4317   |  batch            |  traces -> RED metrics      |
+  |  OTLP HTTP  :4318   |  memory_limiter   |                             |
+  |  FileLog            |                   |  📤 Export to backends      |
+  +----------+----------+-------------------+------------------------------+
              |                    |                        |
          🔍 Traces           📊 Metrics               📝 Logs
              |                    |                        |
@@ -104,20 +104,20 @@ We evaluated Datadog, New Relic, and Dynatrace. We chose open source for three r
                         +-- 🔎  blackbox-exporter    (API health probes)
                                    |
                                    v
-  +-----------------------------------------------------------------------+
-  |                         📈  Grafana                                   |
-  |-----------------------------------------------------------------------|
+  +----------------------------------------------------------------------+
+  |                         📈  Grafana                                  |
+  |----------------------------------------------------------------------|
   |  +------------------+  +------------------+  +------------------+    |
-  |  | 📊  APM          |  | 🖥️   EKS          |  | ☕  JVM          |    |
+  |  | 📊  APM          |  | 🖥️   EKS         |  | ☕  JVM           |    |
   |  | Golden Signals   |  | NOC · Nodes      |  | Heap · GC        |    |
   |  | Apdex · Latency  |  | Pods · Security  |  | Threads · CPU    |    |
   |  +------------------+  +------------------+  +------------------+    |
-  |                         +------------------+                          |
-  |                         | 💰  Cost         |                          |
-  |                         | Efficiency       |                          |
-  |                         | Rightsizing      |                          |
-  |                         +------------------+                          |
-  +-----------------------------------------------------------------------+
+  |                         +------------------+                         |
+  |                         | 💰  Cost         |                         |
+  |                         | Efficiency       |                         |
+  |                         | Rightsizing      |                         |
+  |                         +------------------+                         |
+  +----------------------------------------------------------------------+
 ```
 
 ---
