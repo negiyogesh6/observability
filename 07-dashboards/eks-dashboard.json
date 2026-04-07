@@ -11,7 +11,7 @@
     "infrastructure"
   ],
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "title": "EKS \u2014 Cluster & Workload Monitoring",
@@ -20,6 +20,7 @@
     "list": [
       {
         "name": "namespace",
+        "label": "Namespace",
         "type": "query",
         "datasource": {
           "type": "prometheus",
@@ -33,7 +34,46 @@
           "value": "$__all"
         },
         "multi": true,
-        "refresh": 2
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "deployment",
+        "label": "Deployment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(kube_replicaset_owner{namespace=~\"$namespace\", owner_kind=\"Deployment\"}, owner_name)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(kube_pod_info{namespace=~\"$namespace\", created_by_name=~\"$deployment.*\"}, pod)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
       }
     ]
   },
@@ -705,7 +745,7 @@
       },
       "targets": [
         {
-          "expr": "avg(1 - rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100",
+          "expr": "avg(1 - rate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\"}[5m])) * 100",
           "legendFormat": ""
         }
       ],
@@ -757,7 +797,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100",
+          "expr": "(1 - sum(node_memory_MemAvailable_bytes{job=\"node-exporter\"}) / sum(node_memory_MemTotal_bytes{job=\"node-exporter\"})) * 100",
           "legendFormat": ""
         }
       ],
@@ -1252,7 +1292,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100",
+          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\"}[5m])) by (instance)) * 100",
           "legendFormat": "{{instance}}"
         }
       ],
@@ -1310,7 +1350,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "expr": "(1 - node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"}) * 100",
           "legendFormat": "{{instance}}"
         }
       ],
@@ -1482,8 +1522,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Pod CPU Usage by Namespace",
-      "description": "",
+      "title": "Pod CPU Usage  (% of Request)",
+      "description": "CPU usage as % of request \u2014 same calculation HPA uses. Yellow=70% (HPA CPU threshold), Red=100%.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1496,7 +1536,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\"}[5m])) by (namespace, pod)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
@@ -1520,25 +1560,44 @@
           "color": {
             "mode": "palette-classic"
           },
-          "unit": "short",
+          "unit": "percent",
           "custom": {
-            "axisLabel": "",
-            "axisWidth": 40,
-            "fillOpacity": 10,
+            "drawStyle": "line",
             "lineWidth": 2,
+            "fillOpacity": 15,
             "gradientMode": "opacity",
             "spanNulls": true,
-            "drawStyle": "line",
-            "showPoints": "never",
-            "axisSoftMin": 0
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
           }
         }
       }
     },
     {
       "type": "timeseries",
-      "title": "Pod Memory Usage by Namespace",
-      "description": "",
+      "title": "Pod Memory Usage  (% of Request)",
+      "description": "Memory usage as % of request \u2014 same calculation HPA uses. Yellow=80% (HPA memory threshold), Red=100%.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1551,7 +1610,7 @@
       },
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{container!=\"\", namespace=~\"$namespace\"}) by (namespace, pod)",
+          "expr": "sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
@@ -1575,16 +1634,37 @@
           "color": {
             "mode": "palette-classic"
           },
-          "unit": "bytes",
+          "unit": "percent",
           "custom": {
-            "axisLabel": "",
-            "axisWidth": 60,
-            "fillOpacity": 12,
+            "drawStyle": "line",
             "lineWidth": 2,
+            "fillOpacity": 15,
             "gradientMode": "opacity",
             "spanNulls": true,
-            "drawStyle": "line",
-            "showPoints": "never"
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
           }
         }
       }
@@ -1605,7 +1685,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])) by (namespace, pod) > 0",
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) by (namespace, pod) > 0",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
@@ -1671,19 +1751,19 @@
       },
       "targets": [
         {
-          "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\"}",
+          "expr": "max(kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\"$deployment\"}) by (namespace, deployment)",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "kube_deployment_status_replicas_ready{namespace=~\"$namespace\"}",
+          "expr": "max(kube_deployment_status_replicas_ready{namespace=~\"$namespace\", deployment=~\"$deployment\"}) by (deployment)",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "kube_deployment_status_replicas_unavailable{namespace=~\"$namespace\"}",
+          "expr": "max(kube_deployment_status_replicas_unavailable{namespace=~\"$namespace\", deployment=~\"$deployment\"}) by (deployment)",
           "format": "table",
           "instant": true,
           "refId": "C"
@@ -1697,28 +1777,23 @@
           }
         },
         {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "namespace",
+                "deployment",
+                "Value #A",
+                "Value #B",
+                "Value #C"
+              ]
+            }
+          }
+        },
+        {
           "id": "organize",
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "Time 1": true,
-              "Time 2": true,
-              "Time 3": true,
-              "__name__ 1": true,
-              "__name__ 2": true,
-              "__name__ 3": true,
-              "job 1": true,
-              "job 2": true,
-              "job 3": true,
-              "instance 1": true,
-              "instance 2": true,
-              "instance 3": true,
-              "namespace 1": true,
-              "namespace 2": true,
-              "namespace 3": true,
-              "namespace 4": true,
-              "namespace 5": true
-            },
+            "excludeByName": {},
             "renameByName": {
               "namespace": "Namespace",
               "deployment": "Deployment",
@@ -1822,7 +1897,7 @@
       },
       "targets": [
         {
-          "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\"} - kube_deployment_status_replicas_ready{namespace=~\"$namespace\"} != 0",
+          "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\"$deployment\"} - kube_deployment_status_replicas_ready{namespace=~\"$namespace\", deployment=~\"$deployment\"} != 0",
           "legendFormat": "{{namespace}}/{{deployment}}"
         }
       ],
@@ -1891,11 +1966,11 @@
       "targets": [
         {
           "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\"}",
-          "legendFormat": "{{horizontalpodautoscaler}} current"
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}} current"
         },
         {
           "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"$namespace\"}",
-          "legendFormat": "{{horizontalpodautoscaler}} max"
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}} max"
         }
       ],
       "options": {
@@ -1934,13 +2009,122 @@
       }
     },
     {
+      "type": "timeseries",
+      "title": "HPA Actual Utilization % \u2014 CPU & Memory  (matches kubectl get hpa TARGETS)",
+      "description": "Exact utilization % HPA controller sees \u2014 same as TARGETS column in kubectl get hpa. Uses kube_horizontalpodautoscaler_status_target_metric from kube-state-metrics v2.x. CPU threshold line at 70%, Memory at 80%. When either crosses threshold = HPA fires.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 91
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_target_metric{namespace=~\"$namespace\", metric_name=~\"cpu|CPU\", metric_target_type=~\"[Uu]tilization\"}",
+          "legendFormat": "{{horizontalpodautoscaler}} \u2014 CPU %"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_status_target_metric{namespace=~\"$namespace\", metric_name=~\"memory|Memory\", metric_target_type=~\"[Uu]tilization\"}",
+          "legendFormat": "{{horizontalpodautoscaler}} \u2014 Memory %"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "mean"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Memory.*"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 80
+                    },
+                    {
+                      "color": "red",
+                      "value": 95
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "type": "row",
       "title": "\ud83d\udcca Resource Requests vs Usage",
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 91
+        "y": 99
       },
       "collapsed": false
     },
@@ -1952,7 +2136,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 92
+        "y": 100
       },
       "datasource": {
         "type": "prometheus",
@@ -1960,7 +2144,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\"}) / sum(kube_node_status_allocatable{resource=\"cpu\"}) * 100",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) / on() sum(kube_node_status_allocatable{resource=\"cpu\"}) * 100",
           "legendFormat": ""
         }
       ],
@@ -2004,7 +2188,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 92
+        "y": 100
       },
       "datasource": {
         "type": "prometheus",
@@ -2012,7 +2196,7 @@
       },
       "targets": [
         {
-          "expr": "avg(1 - rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100",
+          "expr": "avg(1 - rate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\"}[5m])) * 100",
           "legendFormat": ""
         }
       ],
@@ -2056,7 +2240,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 92
+        "y": 100
       },
       "datasource": {
         "type": "prometheus",
@@ -2064,7 +2248,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\"}) / sum(kube_node_status_allocatable{resource=\"memory\"}) * 100",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) / on() sum(kube_node_status_allocatable{resource=\"memory\"}) * 100",
           "legendFormat": ""
         }
       ],
@@ -2108,7 +2292,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 92
+        "y": 100
       },
       "datasource": {
         "type": "prometheus",
@@ -2116,7 +2300,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100",
+          "expr": "(1 - sum(node_memory_MemAvailable_bytes{job=\"node-exporter\"}) / sum(node_memory_MemTotal_bytes{job=\"node-exporter\"})) * 100",
           "legendFormat": ""
         }
       ],
@@ -2160,7 +2344,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 96
+        "y": 104
       },
       "datasource": {
         "type": "prometheus",
@@ -2168,11 +2352,11 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", node=~\".+\"}) by (node) / sum(kube_node_status_allocatable{resource=\"cpu\"}) by (node) * 100",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\", node=~\".+\"}) by (node) / sum(kube_node_status_allocatable{resource=\"cpu\"}) by (node) * 100",
           "legendFormat": "{{node}} reserved %"
         },
         {
-          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100",
+          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\"}[5m])) by (instance)) * 100",
           "legendFormat": "{{instance}} actual %"
         }
       ],
@@ -2222,7 +2406,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 96
+        "y": 104
       },
       "datasource": {
         "type": "prometheus",
@@ -2230,11 +2414,11 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", node=~\".+\"}) by (node) / sum(kube_node_status_allocatable{resource=\"memory\"}) by (node) * 100",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\", node=~\".+\"}) by (node) / sum(kube_node_status_allocatable{resource=\"memory\"}) by (node) * 100",
           "legendFormat": "{{node}} reserved %"
         },
         {
-          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "expr": "(1 - node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"}) * 100",
           "legendFormat": "{{instance}} actual %"
         }
       ],
@@ -2284,7 +2468,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 104
+        "y": 112
       },
       "datasource": {
         "type": "prometheus",
@@ -2292,25 +2476,25 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\"}) by (namespace, pod)",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\"}[5m])) by (namespace, pod)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod)",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\"}) by (namespace, pod)",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)",
           "format": "table",
           "instant": true,
           "refId": "C"
         },
         {
-          "expr": "sum(container_memory_working_set_bytes{container!=\"\", namespace=~\"$namespace\"}) by (namespace, pod)",
+          "expr": "sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)",
           "format": "table",
           "instant": true,
           "refId": "D"
@@ -2410,13 +2594,13 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU: Request vs Actual Usage",
+      "title": "CPU: Actual Usage vs Request  (cores)",
       "description": "",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 114
+        "y": 122
       },
       "datasource": {
         "type": "prometheus",
@@ -2424,11 +2608,11 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\"}[5m])) by (pod)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (pod)",
           "legendFormat": "{{pod}} usage"
         },
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\"}) by (pod)",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)",
           "legendFormat": "{{pod}} request"
         }
       ],
@@ -2475,7 +2659,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 114
+        "y": 122
       },
       "datasource": {
         "type": "prometheus",
@@ -2483,11 +2667,11 @@
       },
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{container!=\"\", namespace=~\"$namespace\"}) by (pod)",
+          "expr": "sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)",
           "legendFormat": "{{pod}} usage"
         },
         {
-          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\"}) by (pod)",
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)",
           "legendFormat": "{{pod}} request"
         }
       ],
@@ -2532,7 +2716,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 122
+        "y": 130
       },
       "collapsed": false
     },
@@ -2544,7 +2728,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 123
+        "y": 131
       },
       "datasource": {
         "type": "prometheus",
@@ -2596,7 +2780,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 123
+        "y": 131
       },
       "datasource": {
         "type": "prometheus",
@@ -2644,7 +2828,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 123
+        "y": 131
       },
       "datasource": {
         "type": "prometheus",
@@ -2688,7 +2872,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 123
+        "y": 131
       },
       "datasource": {
         "type": "prometheus",
@@ -2736,7 +2920,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 127
+        "y": 135
       },
       "datasource": {
         "type": "prometheus",
@@ -2813,7 +2997,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 127
+        "y": 135
       },
       "datasource": {
         "type": "prometheus",
@@ -2869,7 +3053,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 135
+        "y": 143
       },
       "datasource": {
         "type": "prometheus",
@@ -3052,7 +3236,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 145
+        "y": 153
       },
       "collapsed": false
     },
@@ -3064,7 +3248,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 146
+        "y": 154
       },
       "datasource": {
         "type": "prometheus",
@@ -3116,7 +3300,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 146
+        "y": 154
       },
       "datasource": {
         "type": "prometheus",
@@ -3164,7 +3348,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 146
+        "y": 154
       },
       "datasource": {
         "type": "prometheus",
@@ -3216,7 +3400,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 146
+        "y": 154
       },
       "datasource": {
         "type": "prometheus",
@@ -3268,7 +3452,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 150
+        "y": 158
       },
       "datasource": {
         "type": "prometheus",
@@ -3345,7 +3529,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 158
+        "y": 166
       },
       "datasource": {
         "type": "prometheus",
@@ -3421,7 +3605,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 166
+        "y": 174
       },
       "collapsed": false
     },
@@ -3433,7 +3617,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 167
+        "y": 175
       },
       "datasource": {
         "type": "prometheus",
@@ -3489,7 +3673,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 167
+        "y": 175
       },
       "datasource": {
         "type": "prometheus",
@@ -3545,7 +3729,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 175
+        "y": 183
       },
       "datasource": {
         "type": "prometheus",
@@ -3659,7 +3843,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 185
+        "y": 193
       },
       "datasource": {
         "type": "prometheus",
@@ -3719,6 +3903,743 @@
                   "mode": "fixed",
                   "fixedColor": "red"
                 }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "\ud83d\udcc8 Scaling History & Peak Analysis",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 199
+      },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Max Replicas Reached (time range)",
+      "description": "Highest replica count seen across all HPAs in selected time range",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 200
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\"}[$__range])",
+          "legendFormat": "{{horizontalpodautoscaler}}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "HPAs at Max Capacity Right Now",
+      "description": "HPAs where current replicas = max replicas \u2014 autoscaler is at ceiling",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 200
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\"} >= kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"$namespace\"}",
+          "legendFormat": "{{horizontalpodautoscaler}}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Scale-Up Events (time range)",
+      "description": "Number of times replicas increased (scale-up only). Each count = HPA added pods.",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 200
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (horizontalpodautoscaler) (count_over_time((kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\"} > kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\"} offset 1m)[$__range:1m]))",
+          "legendFormat": "{{horizontalpodautoscaler}}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pods Launched at Peak",
+      "description": "Max pods running at any point in selected time range",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 200
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(max_over_time(kube_pod_status_phase{phase=\"Running\", namespace=~\"$namespace\"}[$__range]))",
+          "legendFormat": "Peak Running Pods"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HPA Replica Count Over Time \u2014 All Deployments",
+      "description": "Shows exactly when each deployment scaled up or down. Peak = traffic spike. Drop = scale-down after quiet period.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 204
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\", horizontalpodautoscaler=~\"$deployment\"}",
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}} current"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_spec_min_replicas{namespace=~\"$namespace\", horizontalpodautoscaler=~\"$deployment\"}",
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}} min"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"$namespace\", horizontalpodautoscaler=~\"$deployment\"}",
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}} max"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "min"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "lineInterpolation": "stepAfter"
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Pod CPU Usage During Scaling Window  (% of Request)",
+      "description": "CPU % of request during scaling window. Crosses 70% = HPA CPU trigger.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 212
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100",
+          "legendFormat": "{{namespace}}/{{pod}}"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "min"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Pod Memory Usage During Scaling Window  (% of Request)",
+      "description": "Memory % of request during scaling window. Crosses 80% = HPA memory trigger. This is likely what triggered your HPA.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 212
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100",
+          "legendFormat": "{{namespace}}/{{pod}}"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "min"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HPA Replica Utilization % Over Time  (Current / Max Replicas)",
+      "description": "How close each HPA is to its max replica count. 100% = autoscaler at ceiling, needs higher maxReplicas.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 220
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\", horizontalpodautoscaler=~\"$deployment\"} / kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"$namespace\", horizontalpodautoscaler=~\"$deployment\"} * 100",
+          "legendFormat": "{{namespace}}/{{horizontalpodautoscaler}}"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "min"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Running Pod Count Over Time",
+      "description": "Total pods running per deployment over time. Flat line = no scaling. Steps up/down = HPA events.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 220
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(kube_pod_status_phase{phase=\"Running\", namespace=~\"$namespace\"}) by (namespace)",
+          "legendFormat": "{{namespace}} total"
+        },
+        {
+          "expr": "count(kube_pod_info{namespace=~\"$namespace\", created_by_name=~\"$deployment.*\"}) by (created_by_name)",
+          "legendFormat": "{{created_by_name}}"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "last",
+            "max",
+            "min"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "spanNulls": true,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "axisSoftMin": 0,
+            "lineInterpolation": "stepAfter"
+          }
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Peak Resource Usage per Deployment \u2014 Selected Time Range",
+      "description": "Max CPU and memory seen per pod during the selected time window. Use this to set correct resource requests.",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 228
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "Peak CPU",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod)[$__range:])",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "max_over_time(sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)[$__range:])",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod)",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "pod"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "namespace 1": true,
+              "namespace 2": true,
+              "namespace 3": true
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "pod": "Pod",
+              "Value #A": "Peak CPU",
+              "Value #B": "Peak Memory",
+              "Value #C": "CPU Request",
+              "Value #D": "Mem Request"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak CPU"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.8
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU Request"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mem Request"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
               }
             ]
           }

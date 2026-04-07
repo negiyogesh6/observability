@@ -1197,8 +1197,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Top CPU Wasters \u2014 Request vs Actual",
-      "description": "Pods with largest gap between CPU requested and CPU used. Right-size these first.",
+      "title": "Top 10 CPU Consuming Pods  (% of Request)",
+      "description": "CPU usage as % of each pod's CPU request. HPA triggers at 70-80%. Pods near or above 100% = under-resourced.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1211,12 +1211,8 @@
       },
       "targets": [
         {
-          "expr": "topk(10, sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod))",
-          "legendFormat": "{{namespace}}/{{pod}} request"
-        },
-        {
-          "expr": "topk(10, sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod))",
-          "legendFormat": "{{namespace}}/{{pod}} actual"
+          "expr": "topk(10, sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100)",
+          "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
       "options": {
@@ -1236,7 +1232,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "percent",
           "color": {
             "mode": "palette-classic"
           },
@@ -1244,21 +1240,40 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 5,
+            "fillOpacity": 15,
             "gradientMode": "opacity",
             "spanNulls": true,
             "showPoints": "auto",
             "pointSize": 4,
             "axisSoftMin": 0,
-            "axisPlacement": "auto"
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
           }
         }
       }
     },
     {
       "type": "timeseries",
-      "title": "Top Memory Wasters \u2014 Request vs Actual",
-      "description": "Pods with largest gap between memory requested and memory used. Right-size these first.",
+      "title": "Top 10 Memory Consuming Pods  (% of Request)",
+      "description": "Memory usage as % of request. Crosses 80% = HPA memory trigger fires.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1271,12 +1286,8 @@
       },
       "targets": [
         {
-          "expr": "topk(10, sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod))",
-          "legendFormat": "{{namespace}}/{{pod}} request"
-        },
-        {
-          "expr": "topk(10, sum(container_memory_working_set_bytes{container!=\"\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod))",
-          "legendFormat": "{{namespace}}/{{pod}} actual"
+          "expr": "topk(10, sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) / on(namespace, pod) sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (namespace, pod) * 100)",
+          "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
       "options": {
@@ -1296,7 +1307,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "percent",
           "color": {
             "mode": "palette-classic"
           },
@@ -1304,21 +1315,40 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 5,
+            "fillOpacity": 15,
             "gradientMode": "opacity",
             "spanNulls": true,
             "showPoints": "auto",
             "pointSize": 4,
             "axisSoftMin": 0,
-            "axisPlacement": "auto"
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
           }
         }
       }
     },
     {
       "type": "table",
-      "title": "\ud83c\udfc6 Top Over-Provisioned Pods \u2014 Rightsizing Candidates",
-      "description": "Pods sorted by CPU waste (request - actual). These are your biggest cost saving opportunities.",
+      "title": "\ud83c\udfc6 Pod Resource \u2014 Request vs Actual Usage",
+      "description": "Compare what each pod requested vs what it actually uses. Large gap = over-provisioned. Use Peak CPU/Memory to set correct requests.",
       "gridPos": {
         "h": 12,
         "w": 24,
@@ -1358,7 +1388,7 @@
       "options": {
         "sortBy": [
           {
-            "displayName": "CPU Waste",
+            "displayName": "Mem Waste",
             "desc": true
           }
         ]
@@ -1397,10 +1427,7 @@
           "id": "calculateField",
           "options": {
             "alias": "CPU Waste",
-            "mode": "reduceRow",
-            "reduce": {
-              "reducer": "sum"
-            },
+            "mode": "binary",
             "binary": {
               "left": "CPU Request",
               "right": "CPU Actual",
@@ -1412,10 +1439,7 @@
           "id": "calculateField",
           "options": {
             "alias": "Mem Waste",
-            "mode": "reduceRow",
-            "reduce": {
-              "reducer": "sum"
-            },
+            "mode": "binary",
             "binary": {
               "left": "Mem Request",
               "right": "Mem Actual",
