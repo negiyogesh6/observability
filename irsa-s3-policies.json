@@ -1,0 +1,54 @@
+# ============================================================
+# IRSA Policy for OTel Collector
+# Attach to otel-collector service account
+# ============================================================
+# aws iam create-policy \
+#   --policy-name SpiceMoneyOtelCollectorS3Policy \
+#   --policy-document file://irsa-otel-collector-policy.json
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ComplianceLogsWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::spicemoney-logs-compliance",
+        "arn:aws:s3:::spicemoney-logs-compliance/*"
+      ]
+    }
+  ]
+}
+
+# ============================================================
+# IRSA Policy for Loki
+# Attach to loki service account
+# ============================================================
+# aws iam create-policy \
+#   --policy-name SpiceMoneyLokiS3Policy \
+#   --policy-document file://irsa-loki-policy.json
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LokiChunksAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::spicemoney-loki-chunks",
+        "arn:aws:s3:::spicemoney-loki-chunks/*"
+      ]
+    }
+  ]
+}

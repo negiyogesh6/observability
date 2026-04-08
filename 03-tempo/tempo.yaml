@@ -19,14 +19,15 @@ data:
       max_block_duration: 5m
     compactor:
       compaction:
-        block_retention: 336h
+        block_retention: 720h          # 30 days, matches Loki retention
     storage:
       trace:
-        backend: local
-        local:
-          path: /var/tempo/traces
+        backend: s3                    # S3 backend — no local disk dependency
+        s3:
+          region: ap-south-1
+          bucket: spicemoney-tempo-traces
         wal:
-          path: /var/tempo/wal
+          path: /var/tempo/wal         # local WAL only, flushed to S3
     metrics_generator:
       registry:
         external_labels:
@@ -78,10 +79,17 @@ spec:
         fsGroup: 10001
         runAsNonRoot: true
         runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: tempo
-          image: grafana/tempo:2.10.3
+          image: grafana/tempo:2.7.2
           args: ["-config.file=/etc/tempo/tempo.yaml"]
+          securityContext:
+            readOnlyRootFilesystem: false  # needs write for WAL on PVC
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           ports:
             - containerPort: 3200
               name: http
@@ -98,7 +106,7 @@ spec:
               memory: 512Mi
             limits:
               cpu: 1000m
-              memory: 1Gi
+              memory: 2Gi
           readinessProbe:
             httpGet:
               path: /ready
@@ -121,7 +129,7 @@ spec:
         storageClassName: gp3
         resources:
           requests:
-            storage: 50Gi
+            storage: 20Gi
 ---
 apiVersion: v1
 kind: Service

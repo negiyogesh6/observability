@@ -44,9 +44,17 @@ spec:
       annotations:
         prometheus.io/scrape: "false"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
       containers:
         - name: blackbox-exporter
           image: prom/blackbox-exporter:v0.25.0
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           args:
             - --config.file=/etc/blackbox/blackbox.yml
           ports:

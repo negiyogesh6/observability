@@ -87,9 +87,16 @@ spec:
         fsGroup: 472
         runAsUser: 472
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: grafana
-          image: grafana/grafana:12.4.2
+          image: grafana/grafana:11.4.0
+          securityContext:
+            readOnlyRootFilesystem: false  # needs write for PVC dashboards/plugins
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           ports:
             - containerPort: 3000
               name: http
@@ -106,6 +113,22 @@ spec:
                   key: admin-password
             - name: GF_INSTALL_PLUGINS
               value: "grafana-clock-panel,grafana-piechart-panel"
+            - name: GF_SECURITY_DISABLE_GRAVATAR
+              value: "true"
+            - name: GF_SECURITY_COOKIE_SECURE
+              value: "true"
+            - name: GF_SECURITY_STRICT_TRANSPORT_SECURITY
+              value: "true"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_SNAPSHOTS_EXTERNAL_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
           volumeMounts:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources

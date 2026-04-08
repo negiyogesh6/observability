@@ -1,0 +1,22 @@
+# S3 Compliance Logs Lifecycle Policy
+# Apply to bucket: spicemoney-logs-compliance
+# Command: aws s3api put-bucket-lifecycle-configuration \
+#            --bucket spicemoney-logs-compliance \
+#            --lifecycle-configuration file://s3-compliance-lifecycle.json
+
+{
+  "Rules": [
+    {
+      "ID": "log-compliance-tiering",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "logs/"
+      },
+      "Transitions": [
+        { "Days": 90,   "StorageClass": "STANDARD_IA" },
+        { "Days": 365,  "StorageClass": "GLACIER" },
+        { "Days": 2555, "StorageClass": "DEEP_ARCHIVE" }
+      ]
+    }
+  ]
+}

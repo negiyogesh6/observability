@@ -1,0 +1,14 @@
+{
+  "Rules": [
+    {
+      "ID": "loki-chunks-lifecycle",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "Expiration": {
+        "Days": 30
+      }
+    }
+  ]
+}

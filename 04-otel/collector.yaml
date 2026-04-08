@@ -109,13 +109,39 @@ data:
           insecure: true
         headers:
           X-Scope-OrgID: "fake"
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 60s
+          max_elapsed_time: 600s
+        sending_queue:
+          enabled: true
+          storage: file_storage
+          queue_size: 10000
+      awss3:
+        s3uploader:
+          region: ap-south-1
+          s3_bucket: spicemoney-logs-compliance
+          s3_prefix: logs
+          s3_partition: minute
+          compression: gzip
+        retry_on_failure:
+          enabled: true
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          storage: file_storage
+          queue_size: 5000
 
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
+      file_storage:
+        directory: /var/otel/queue
+        timeout: 10s
 
     service:
-      extensions: [health_check]
+      extensions: [health_check, file_storage]
       pipelines:
         traces:
           receivers: [otlp]
@@ -128,7 +154,7 @@ data:
         logs:
           receivers: [filelog, otlp]
           processors: [memory_limiter, resource/loki, batch]
-          exporters: [otlphttp/loki]
+          exporters: [otlphttp/loki, awss3]
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -150,9 +176,13 @@ spec:
         prometheus.io/port: "8889"
     spec:
       serviceAccountName: otel-collector
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsUser: 0                   # required to read /var/log/pods on node
+        runAsGroup: 0
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:0.149.0
+          image: otel/opentelemetry-collector-contrib:0.115.0
           args: ["--config=/etc/otel/config.yaml"]
           ports:
             - containerPort: 4317
@@ -171,6 +201,11 @@ spec:
             - name: varlogpods
               mountPath: /var/log/pods
               readOnly: true
+            - name: otel-queue
+              mountPath: /var/otel/queue
+          securityContext:
+            readOnlyRootFilesystem: false  # needs write for queue
+            allowPrivilegeEscalation: false
           resources:
             requests:
               cpu: 200m
@@ -197,6 +232,9 @@ spec:
         - name: varlogpods
           hostPath:
             path: /var/log/pods
+        - name: otel-queue
+          hostPath:
+            path: /var/otel/queue
 ---
 apiVersion: v1
 kind: Service
